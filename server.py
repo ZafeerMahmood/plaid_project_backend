@@ -90,6 +90,8 @@ def setAccessToken():
         access_token = exchange_response['access_token']
         item_id = exchange_response['item_id']
 
+        #TODO check this access token exits to email 
+
         #TODO set the access token & item id to the user in the database
 
 
@@ -151,14 +153,14 @@ def get_transactions():
             )
             response = client.transactions_sync(request).to_dict()
             # Add this page of results
-            added.extend(response['added'])
+            #added.extend(response['added'])
             # modified.extend(response['modified'])
             # removed.extend(response['removed'])
             # has_more = response['has_more']
             # cursor = response['next_cursor']
             # pretty_print_response(response)
 
-        latest_transactions = sorted(added, key=lambda t: t['date'])
+        latest_transactions = sorted(response, key=lambda t: t['date'])
         return jsonify({
             'transactions': latest_transactions})
 
