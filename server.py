@@ -15,7 +15,10 @@ import time
 from plaid.model.country_code import CountryCode
 from flask_cors import CORS
 from flask import request
-from components import infoT 
+import pymongo 
+from pymongo import MongoClient
+from components import testD
+
 
 load_dotenv()
 
@@ -24,6 +27,7 @@ CORS(app)
 
 PLAID_CLIENT_ID = os.getenv('PLAID_CLIENT_ID')
 PLAID_SECRET = os.getenv('PLAID_SECRET_ID')
+MONGODB_URI = os.getenv('MONGODB_URI')
 
 #plaid.Environment.Sandbox
 host = plaid.Environment.Sandbox 
@@ -41,6 +45,16 @@ configuration = plaid.Configuration(
 
 api_client = plaid.ApiClient(configuration)
 client = plaid_api.PlaidApi(api_client)
+mongo_client = MongoClient(MONGODB_URI)
+db = mongo_client['Plaid']
+collection = db['users']
+
+
+
+
+
+
+
 
 access_token = None
 payment_id = None
@@ -54,11 +68,15 @@ item_id = None
 def index():
     return f"Flast sever Runing on {os.getenv('PORT', 8000)}"
 
+@app.route('/db', methods=['get'])
+def dbT():
+    return  testD(collection)
+
 @app.route('/api/linkToken', methods=['GET'])
 def linkToken():
     try:
         request = LinkTokenCreateRequest(
-        products=[Products('auth'), Products('transactions'),Products('identity'),Products('balance')],
+        products=[Products('auth'), Products('transactions'),Products('identity')],
         client_name="Plaid Quickstart",
         country_codes=[CountryCode('US')],
         language='en',
@@ -141,7 +159,7 @@ def get_balance():
 def get_transactions():
 
     cursor = ''
-    added = []
+    # added = []
     # modified = []
     # removed = []
     has_more = True
@@ -153,12 +171,12 @@ def get_transactions():
             )
             response = client.transactions_sync(request).to_dict()
             # Add this page of results
-            #added.extend(response['added'])
+            # added.extend(response['added'])
             # modified.extend(response['modified'])
             # removed.extend(response['removed'])
             # has_more = response['has_more']
-            # cursor = response['next_cursor']
-            # pretty_print_response(response)
+            cursor = response['next_cursor']
+            pretty_print_response(response)
 
         latest_transactions = sorted(response, key=lambda t: t['date'])
         return jsonify({

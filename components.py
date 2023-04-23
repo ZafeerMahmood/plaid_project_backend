@@ -9,3 +9,22 @@
 #         access_token: string,
 #         item_id: string
 #}],}
+
+
+from bson import json_util, ObjectId
+import json
+
+def testD(collection):
+    result=collection.find_one({"email": "zafeer"})
+    return parse_json(result)
+    
+    
+    
+    
+def parse_json(data):
+    return json.loads(json_util.dumps(data))
+
+
+
+
+
