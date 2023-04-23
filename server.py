@@ -15,9 +15,8 @@ import time
 from plaid.model.country_code import CountryCode
 from flask_cors import CORS
 from flask import request
-import pymongo 
 from pymongo import MongoClient
-from components import testD
+from components import addUser,addAccount,getUserAccounts,checkIfUserExits,checkIfAccessTokenExits
 
 
 load_dotenv()
@@ -53,9 +52,6 @@ collection = db['users']
 
 
 
-
-
-
 access_token = None
 payment_id = None
 transfer_id = None
@@ -68,9 +64,6 @@ item_id = None
 def index():
     return f"Flast sever Runing on {os.getenv('PORT', 8000)}"
 
-@app.route('/db', methods=['get'])
-def dbT():
-    return  testD(collection)
 
 @app.route('/api/linkToken', methods=['GET'])
 def linkToken():
@@ -91,6 +84,7 @@ def linkToken():
     
 
 #TODO include Database integration in monogb to store access token on the specific user
+
 @app.route('/api/setAccessToken', methods=['POST'])
 def setAccessToken():
     global access_token
@@ -99,8 +93,9 @@ def setAccessToken():
     email=request.form['email']
     #Todo call a funtion to check if email exits if it does then return if not make a new user with that email
     try:
-        #append the accesstoken to the user {account[{}]}
-        
+        if checkIfUserExits(collection,email) is False:
+            addUser(collection,email)
+
         exchange_request = ItemPublicTokenExchangeRequest(
             public_token=public_token)
         exchange_response = client.item_public_token_exchange(exchange_request)
@@ -109,9 +104,10 @@ def setAccessToken():
         item_id = exchange_response['item_id']
 
         #TODO check this access token exits to email 
+        if checkIfAccessTokenExits(collection,email,access_token) is False:
+            addAccount(collection,email,access_token,item_id)
 
         #TODO set the access token & item id to the user in the database
-
 
     except plaid.ApiException as e:
         pretty_print_response(e)
