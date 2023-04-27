@@ -67,13 +67,13 @@ def getUser(collection, email):
 #@return: True if the access token exists, False if the access token does not exist
 def checkIfAccessTokenExits(collection, email, access_token):
     result = collection.find_one({"email": email})
-    if result is None:
-        return False
-    else:
+    try:
         for account in result['account']:
             if account['access_token'] == access_token:
                 return True
+    except:
         return False
+    return False
     
 
 
