@@ -1,7 +1,7 @@
 from components import addTransactionsv1, getCursor
 from pymongo import MongoClient
 
-client = MongoClient("")
+client = MongoClient("mongodb+srv://zafeer:f7lriLMmKX2ErNhw@cluster0.tuaov.mongodb.net/?retryWrites=true&w=majority")
 db = client["Plaid"]  
 collection = db["test"]  
 
@@ -18,7 +18,7 @@ def test_addTransactions():
             "amount": 200
         },
         {
-            "transaction_id": "4",
+            "transaction_id": "5",
             "amount": 3020
         }
     ]
