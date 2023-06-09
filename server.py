@@ -143,8 +143,52 @@ def get_accounts():
         return jsonify(error_response), 500
 
 # * TODO update the code to get all the accounts from the user and return it to the client
+# @app.route('/api/balance', methods=['GET'])
+# def get_balance():
+#     email = request.form['email']
+#     if checkIfUserExits(collection, email) is False:
+#         return jsonify({'error': 'User does not exist'})
+#     account = getUserAccounts(collection, email)
+#     balance_obj = {}
+#     total_balance = 0
+#     i = 1
+#     try:
+#         for access_token in account:
+#             account_key = 'account_'+str(i)
+#             requests = AccountsBalanceGetRequest(
+#                 access_token=access_token['access_token']
+#             )
+#             response = client.accounts_balance_get(requests)
 
+#             # Extract account details and add them to balance_obj
+#             for account_details in response.accounts:
+#                 account_id = account_details.account_id
+#                 account_name = account_details.name
+#                 balances = {
+#                     'available': account_details.balances.available,
+#                     'current': account_details.balances.current,
+#                     'iso_currency_code': account_details.balances.iso_currency_code,
+#                     'limit': account_details.balances.limit,
+#                     'unofficial_currency_code': account_details.balances.unofficial_currency_code
+#                 }
+#                 balance_obj.setdefault(account_key, []).append({
+#                     'account_id': account_id,
+#                     'name': account_name,
+#                     'balances': balances
+#                 })
 
+#                 total_balance += account_details.balances.available
+
+#         response_data = {
+#             'accounts': balance_obj,
+#             'total_balance': total_balance
+#         }
+
+#         return jsonify(response_data)
+#     except plaid.ApiException as e:
+#         error_response = format_error(e)
+#         pretty_print_response(error_response)
+#         return jsonify(error_response)
 @app.route('/api/balance', methods=['GET'])
 def get_balance():
     email = request.form['email']
@@ -156,7 +200,7 @@ def get_balance():
     i = 1
     try:
         for access_token in account:
-            account_key = 'account_'+str(i)
+            account_key = 'account_' + str(i)
             requests = AccountsBalanceGetRequest(
                 access_token=access_token['access_token']
             )
@@ -182,16 +226,26 @@ def get_balance():
                 total_balance += account_details.balances.available
 
         response_data = {
-            'accounts': balance_obj,
-            'total_balance': total_balance
+            'total_balance': total_balance,
+            'accounts': []
         }
+        # Filter and add specific accounts to the 'accounts' list
+        for account_key, account_details in balance_obj.items():
+            for account in account_details:
+                if account['name'] in ['Plaid Checking', 'Plaid Saving']:  # Add account names as per your requirement
+                    response_data['accounts'].append(account)
+                    
+        # Calculate and add percentages for each account balance
+        for account in response_data['accounts']:
+            available_balance = account['balances']['available']
+            percentage = (available_balance / total_balance) * 100
+            account['percentage'] = percentage
 
         return jsonify(response_data)
-    except plaid.ApiException as e:
-        error_response = format_error(e)
-        pretty_print_response(error_response)
-        return jsonify(error_response)
 
+    except Exception as e:
+        return jsonify({'error': e})
+    
 
 # Function to get transactions
 # route not in Use only for testing purpose
@@ -216,8 +270,6 @@ def get_transactions():
 
 # Function to get transactions from an access_token with Plaid
 # testing Function Not in use
-
-
 def get_transactions_from_access_token(access_token):
     cursor = ''
     has_more = True
@@ -314,8 +366,6 @@ def getTransactionsSync(access_token, cursorparam):
 # * funtion to get all transactions from db
 # @param : email
 # @return : list of Transactions
-
-
 @app.route('/api/transactions', methods=['GET'])
 def get_transactions_from_db():
     email = request.form['email']
@@ -338,6 +388,47 @@ def get_transactions_from_db():
         return jsonify(modified_result)
     except Exception as e:
         return jsonify({'error': e})
+
+
+
+
+# funtion to get a list of categories and the amount spent in each category limited to 5
+# @param : email
+# @return : list of categories and the amount spent in each category limited to 5
+@app.route('/api/expense', methods=['GET'])
+def get_Expense():
+    email = request.form['email']
+    if checkIfUserExits(collection, email) is False:
+        return jsonify({'error': 'User does not exist'})
+    try:
+        result = getAllTransactions(collection, email)
+        modified_result = []
+        category_spending = {}
+        total_spending = 0
+        for transaction in result:
+            if transaction['amount'] > 0:
+                category = tuple(transaction['category'])
+                amount = transaction['amount']
+                if category in category_spending:
+                    category_spending[category] += amount
+                else:
+                    category_spending[category] = amount
+                total_spending += amount
+
+        top_categories = sorted(category_spending.items(), key=lambda x: x[1], reverse=True)[:5]
+        top_categories_data = []
+
+        for category, amount in top_categories:
+            percentage = round((amount / total_spending) * 100, 2)
+            top_categories_data.append({
+                'category': category,
+                'amount': amount,
+                'percentage': percentage
+            })
+
+        return jsonify(top_categories_data)
+    except Exception as e:
+        return jsonify({'error': str(e)})
 
 
 # * Function to format json response
