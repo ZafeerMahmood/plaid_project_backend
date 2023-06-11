@@ -1,3 +1,24 @@
+"""
+    #This module contains the Flask server that handles the Plaid API calls.
+
+    #dependencies:
+        - flask
+        - plaid-python
+        - pymongo
+        - python-dotenv
+        - flask-cors
+    #environment variables:
+        - PLAID_CLIENT_ID
+        - PLAID_SECRET_ID
+        - PLAID_ENV
+        - MONGODB_URI
+    
+    
+    #To run the server, run the following command in the terminal:
+        python server.py
+
+"""
+
 import json
 import plaid
 import datetime
@@ -56,16 +77,28 @@ collection = db['users']
 transactionsdb = db['transactions']
 
 
-@app.route('/', methods=['get'])
+@app.route('/', methods=['GET'])
 def index():
-    return f"Flast sever Runing on {os.getenv('PORT', 8000)}"
+    """
+    #Root endpoint to check the status of the Flask server.
+    
+    #Returns:
+        str: A message indicating the status of the Flask server.
+    """
+    return f"Flask server running on port {os.getenv('PORT', 8000)}"
 
 
-# * Create a link token with plaid
-# @param :None Get the link token to link the user account with plaid
-# @return the link token to the client
 @app.route('/api/linkToken', methods=['GET'])
 def linkToken():
+    """
+    #Generate a link token to link a user account with Plaid.
+
+    #Returns:
+        dict: The link token as a dictionary, containing the link token value and other metadata.
+
+    #Raises:
+        plaid.ApiException: If an error occurs while generating the link token.
+    """
     try:
         request = LinkTokenCreateRequest(
             products=[Products('auth'), Products('transactions')],
@@ -81,132 +114,110 @@ def linkToken():
     except plaid.ApiException as e:
         return json.loads(e.body)
 
-
-# * route to set the access token to the user
-# @param : must have a feild of email in request body along with public_token from the client (plaid_public_token,email)
-# @return : None
 @app.route('/api/setAccessToken', methods=['POST'])
 def setAccessToken():
+    """
+    #Set the access token for a user.
+
+    #Args:
+        email (str): The email of the user.
+        public_token (str): The public token received from the Plaid client.
+
+    #Returns:
+        dict: A dictionary with an 'error' key indicating the success of the operation.
+
+    #Raises:
+        plaid.ApiException: If an error occurs during the access token exchange or account addition.
+    """
     global access_token
     global item_id
     public_token = request.form['public_token']
     email = request.form['email']
-    # call a funtion to check if email exits if it does then return if not make a new user with that email
+    
     try:
+        """# Check if the email exists, and if not, add a new user"""
         if checkIfUserExits(collection, email) is False:
             addUser(collection, email)
 
-        exchange_request = ItemPublicTokenExchangeRequest(
-            public_token=public_token)
+        """# Exchange the public token for an access token"""
+        exchange_request = ItemPublicTokenExchangeRequest(public_token=public_token)
         exchange_response = client.item_public_token_exchange(exchange_request)
-
         access_token = exchange_response['access_token']
         item_id = exchange_response['item_id']
 
-        # * check this access token exits to email
+        """# Check if the access token exists for the user, and if not, add the account"""
         if checkIfAccessTokenExits(collection, email, access_token) is False:
             addAccount(collection, email, access_token, item_id)
 
-        return jsonify({'error': None, })
-
+        return jsonify({'error': None})
     except plaid.ApiException as e:
         pretty_print_response(e)
         return json.loads(e.body)
 
 
-# * Get User accounts from the access token to see if account is already linked or Not
-# @param : user email
-# @return : list of [inititution_id]
 @app.route('/api/accounts', methods=['POST', 'GET'])
 def get_accounts():
+    """
+    #Get user accounts associated with the access token.
+
+    #Args:
+        email (str): The email of the user.
+
+    #Returns:
+        dict: A dictionary containing a list of institution IDs.
+
+    #Raises:
+        plaid.ApiException: If an error occurs during the API call.
+    """
     email = request.form['email']
     accounts = getUserAccounts(collection, email)
-    print(accounts)
+
     if accounts is None:
         return jsonify({'error': 'User does not exist'}), 404
-    obj = []
-    i = 1
+
+    institution_ids = []
     try:
         for access_token in accounts:
-            Request = AccountsGetRequest(
-                access_token=access_token['access_token']
-            )
-            response = client.accounts_get(Request)
-            r = response.to_dict()
-            id = r['item']['institution_id']
-            obj.append(id)
-            i = i+1
+            request = AccountsGetRequest(access_token=access_token['access_token'])
+            response = client.accounts_get(request)
+            institution_id = response.item.institution_id
+            institution_ids.append(institution_id)
 
-        return jsonify(obj), 200
+        return jsonify(institution_ids), 200
     except plaid.ApiException as e:
         error_response = format_error(e)
         return jsonify(error_response), 500
 
-# * TODO update the code to get all the accounts from the user and return it to the client
-# @app.route('/api/balance', methods=['GET'])
-# def get_balance():
-#     email = request.form['email']
-#     if checkIfUserExits(collection, email) is False:
-#         return jsonify({'error': 'User does not exist'})
-#     account = getUserAccounts(collection, email)
-#     balance_obj = {}
-#     total_balance = 0
-#     i = 1
-#     try:
-#         for access_token in account:
-#             account_key = 'account_'+str(i)
-#             requests = AccountsBalanceGetRequest(
-#                 access_token=access_token['access_token']
-#             )
-#             response = client.accounts_balance_get(requests)
-
-#             # Extract account details and add them to balance_obj
-#             for account_details in response.accounts:
-#                 account_id = account_details.account_id
-#                 account_name = account_details.name
-#                 balances = {
-#                     'available': account_details.balances.available,
-#                     'current': account_details.balances.current,
-#                     'iso_currency_code': account_details.balances.iso_currency_code,
-#                     'limit': account_details.balances.limit,
-#                     'unofficial_currency_code': account_details.balances.unofficial_currency_code
-#                 }
-#                 balance_obj.setdefault(account_key, []).append({
-#                     'account_id': account_id,
-#                     'name': account_name,
-#                     'balances': balances
-#                 })
-
-#                 total_balance += account_details.balances.available
-
-#         response_data = {
-#             'accounts': balance_obj,
-#             'total_balance': total_balance
-#         }
-
-#         return jsonify(response_data)
-#     except plaid.ApiException as e:
-#         error_response = format_error(e)
-#         pretty_print_response(error_response)
-#         return jsonify(error_response)
 @app.route('/api/balance', methods=['GET'])
 def get_balance():
+    """
+    #Get the account balances for the user.
+
+    #Args:
+        email (str): The email of the user.
+
+    #Returns:
+        dict: A dictionary containing the total balance and a list of filtered accounts with their balances and percentages.
+
+    #Raises:
+        Exception: If an error occurs during the balance retrieval.
+    """
     email = request.form['email']
+
     if checkIfUserExits(collection, email) is False:
         return jsonify({'error': 'User does not exist'})
+
     account = getUserAccounts(collection, email)
     balance_obj = {}
     total_balance = 0
     i = 1
+
     try:
         for access_token in account:
             account_key = 'account_' + str(i)
-            requests = AccountsBalanceGetRequest(
-                access_token=access_token['access_token']
-            )
-            response = client.accounts_balance_get(requests)
+            request = AccountsBalanceGetRequest(access_token=access_token['access_token'])
+            response = client.accounts_balance_get(request)
 
-            # Extract account details and add them to balance_obj
             for account_details in response.accounts:
                 account_id = account_details.account_id
                 account_name = account_details.name
@@ -229,13 +240,12 @@ def get_balance():
             'total_balance': total_balance,
             'accounts': []
         }
-        # Filter and add specific accounts to the 'accounts' list
+
         for account_key, account_details in balance_obj.items():
             for account in account_details:
-                if account['name'] in ['Plaid Checking', 'Plaid Saving']:  # Add account names as per your requirement
+                if account['name'] in ['Plaid Checking', 'Plaid Saving']:
                     response_data['accounts'].append(account)
-                    
-        # Calculate and add percentages for each account balance
+
         for account in response_data['accounts']:
             available_balance = account['balances']['available']
             percentage = (available_balance / total_balance) * 100
@@ -247,10 +257,23 @@ def get_balance():
         return jsonify({'error': e})
     
 
-# Function to get transactions
-# route not in Use only for testing purpose
 @app.route('/api/transactions/test', methods=['GET'])
 def get_transactions():
+    """
+    #Retrieve transactions for testing purposes.
+
+    This route is not in use and is only for testing purposes.
+    It retrieves transactions for all the access tokens associated with a user and returns the transactions.
+
+    #Args:
+        None (retrieves email from request)
+
+    #Returns:
+        dict: A dictionary containing the transactions for each account.
+
+    #Raises:
+        None
+    """
     email = request.form['email']
     if checkIfUserExits(collection, email) is False:
         return jsonify({'error': 'User does not exist'})
@@ -268,9 +291,26 @@ def get_transactions():
     except Exception as e:
         return jsonify({'error': e})
 
-# Function to get transactions from an access_token with Plaid
-# testing Function Not in use
+
 def get_transactions_from_access_token(access_token):
+    """
+    #Retrieve transactions for a specific access token.
+
+    This function retrieves transactions for a specific access token using the transactions_sync endpoint of the Plaid API.
+    It iterates through the transactions using pagination until there are no more transactions.
+    It returns the latest 10 transactions sorted by date.
+
+    #Note: This function is for testing purposes and is not currently in use.
+
+    #Args:
+        access_token (str): The access token for which transactions need to be retrieved.
+
+    #Returns:
+        list: The latest 10 transactions sorted by date.
+
+    #Raises:
+        None
+    """
     cursor = ''
     has_more = True
     added = []
@@ -294,19 +334,32 @@ def get_transactions_from_access_token(access_token):
         return error_response
 
 
-# Function to get transactions
-# * get User Cursor from db if they exit pass the cursor the get new transactions, if not then add {account_1:{cursor,transcation[]},  account_2:{},account_3:{},...
-# * steps first get email from request to get user if exist then get all access token from that user and then get all Cursors from db
-# @param : email
-# @return : list of Transactions
-@app.route('/api/transactions/update', methods=['GET'])
+
 def get_transactionsUpdate():
+    """
+    #Retrieve updated transactions for the user.
+
+    This function fetches updated transactions for the user. It first retrieves the user's email from the request.
+    If the user does not exist, it returns an error response.
+    If the user exists, it retrieves all access tokens associated with the user and checks if there are any stored cursors in the database.
+    If cursors are not found, it retrieves all transactions for each access token and stores them in the database with their respective cursors.
+    If cursors are found, it retrieves transactions starting from the stored cursors for each access token and updates the stored cursors in the database.
+    The function returns a dictionary containing the updated transactions.
+
+    #Args:
+        None (retrieves email from request)
+
+    #Returns:
+        dict: Dictionary containing the updated transactions.
+
+    #Raises:
+        None
+    """
     email = request.form['email']
     if checkIfUserExits(collection, email) is False:
         return jsonify({'error': 'User does not exist'}), 404
 
     account = getUserAccounts(collection, email)
-    # * TODO get all the transactions from all the access token and and store it in the db with the cursor and return
     obj = dict()
     i = 1
     try:
@@ -322,7 +375,6 @@ def get_transactionsUpdate():
                     access_token['access_token'], cursorparam=getCursor(collection, email, a))
                 obj[a] = addTransactions(
                     collection, email, result['transactions'], result['cursor'], a)
-                print(result['transactions'])
             i = i+1
 
         return jsonify({'transactions': obj})
@@ -330,13 +382,25 @@ def get_transactionsUpdate():
     except Exception as e:
         return jsonify({'error': e})
 
-# * Function to get transactions from an access_token with Plaid
-# * uses transactions_sync endpoint to get all transactions from an access token and returns the transactions and the cursor
-# @param : access_token,cursor
-# @return : list of Transactions and cursor
-
 
 def getTransactionsSync(access_token, cursorparam):
+    """
+    #Retrieve transactions from Plaid using the transactions_sync endpoint.
+
+    This function takes an access token and a cursor as input and retrieves all transactions associated with the access token.
+    It uses the transactions_sync endpoint to fetch transactions in batches until there are no more transactions available.
+    The function returns a dictionary containing the list of transactions and the updated cursor.
+
+    #Args:
+        access_token (str): Access token for the user's Plaid account.
+        cursorparam (str): Cursor to paginate through transactions.
+
+    #Returns:
+        dict: Dictionary containing the list of transactions and the updated cursor.
+
+    #Raises:
+        plaid.ApiException: If an error occurs during the API request.
+    """
     cursor = cursorparam
     has_more = True
     added = []
@@ -351,31 +415,42 @@ def getTransactionsSync(access_token, cursorparam):
             added.extend(response['added'])
             cursor = response['next_cursor']
 
-        # mongoDB does not support datetime so we need to convert it to string
         for transaction in added:
             transaction['date'] = str(transaction['date'])
-            transaction['authorized_date'] = str(
-                transaction['authorized_date'])
+            transaction['authorized_date'] = str(transaction['authorized_date'])
 
-        return ({'transactions': added, 'cursor': cursor})
+        return {'transactions': added, 'cursor': cursor}
 
     except plaid.ApiException as e:
         error_response = format_error(e)
         return error_response
 
-# * funtion to get all transactions from db
-# @param : email
-# @return : list of Transactions
+
 @app.route('/api/transactions', methods=['GET'])
 def get_transactions_from_db():
+    """
+    #Retrieve all transactions for a user from the database.
+
+    This route accepts a GET request and expects the user's email to be provided in the request form.
+    It retrieves all transactions associated with the user from the database and returns a list of transactions.
+
+    #Args:
+        None (retrieves email from request)
+
+    #Returns:
+        JSON response containing a list of transactions.
+
+    #Raises:
+        None
+    """
     email = request.form['email']
     if checkIfUserExits(collection, email) is False:
         return jsonify({'error': 'User does not exist'})
     try:
-        result = getAllTransactions(collection, email, )
+        result = getAllTransactions(collection, email)
         modified_result = []
-        max_catorgey ={}
-        
+        max_catorgey = {}
+
         for transaction in result:
             modified_transaction = {
                 'amount': transaction['amount'],
@@ -387,16 +462,27 @@ def get_transactions_from_db():
 
         return jsonify(modified_result)
     except Exception as e:
-        return jsonify({'error': e})
+        return jsonify({'error': str(e)})
 
 
-
-
-# funtion to get a list of categories and the amount spent in each category limited to 5
-# @param : email
-# @return : list of categories and the amount spent in each category limited to 5
 @app.route('/api/expense', methods=['GET'])
 def get_Expense():
+    """
+    #Retrieve a list of categories and the amount spent in each category, limited to 5.
+
+    This route accepts a GET request and expects the user's email to be provided in the request form.
+    It retrieves all transactions for the user, calculates the amount spent in each category,
+    and returns a list of the top 5 categories with their corresponding amounts and percentages.
+
+    #Args:
+        None (retrieves email from request)
+
+    #Returns:
+        JSON response containing the list of categories and the amount spent in each category, limited to 5.
+
+    #Raises:
+        None
+    """
     email = request.form['email']
     if checkIfUserExits(collection, email) is False:
         return jsonify({'error': 'User does not exist'})
@@ -431,23 +517,66 @@ def get_Expense():
         return jsonify({'error': str(e)})
 
 
-# * Function to format json response
-# @param : response in json format
-# @return : pretty print json response
-def pretty_print_response(response):
-    print(json.dumps(response, indent=2, sort_keys=True, default=str))
 
-# * Function to format error response
-# @param : error response in json format
-# @return : error response in json format
+def pretty_print_response(response):
+    """
+    #Pretty print a JSON response.
+
+    This function takes a JSON response and prints it in a pretty and readable format.
+
+    #Args:
+        response (dict): JSON response to be printed.
+
+    #Returns:
+        None
+
+    #Raises:
+        None
+    """
+    print(json.dumps(response, indent=2, sort_keys=True, default=str))
 
 
 def format_error(e):
+    """
+    #Format the Plaid API error response.
+
+    This function takes a Plaid API exception and extracts the relevant error information from the response.
+
+    #Args:
+        e (plaid.ApiException): Plaid API exception.
+
+    #Returns:
+        dict: A dictionary containing the formatted error details.
+
+    #Raises:
+        None
+    """
     response = json.loads(e.body)
-    return {'error': {'status_code': e.status, 'display_message':
-                      response['error_message'], 'error_code': response['error_code'], 'error_type': response['error_type']}}
+    return {
+        'error': {
+            'status_code': e.status,
+            'display_message': response['error_message'],
+            'error_code': response['error_code'],
+            'error_type': response['error_type']
+        }
+    }
 
 
-# main function
+
 if __name__ == '__main__':
+    """
+    #The main entry point for the Flask application.
+
+    #Starts the Flask server on the specified port.
+
+    #Args:
+        None
+
+    #Returns:
+        None
+
+    #Raises:
+        None
+    """
     app.run(port=os.getenv('PORT', 8000))
+

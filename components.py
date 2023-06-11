@@ -1,8 +1,25 @@
+"""
+# This file contains functions to interact with the MongoDB.
 
-# funtion to check if a user exists
-# @param: collection type of mongoDB collection, email type of string
-# @return: True if the user exists, False if the user does not exist
+these Function have no dependencies on the Flask application object and can be imported directly from the server.components module.
+
+components.py
+
+"""
+
+
+
 def checkIfUserExits(collection, email):
+    """
+    #Function to check if a user exists in a MongoDB collection.
+
+    #Args:
+        collection (collection): MongoDB collection object.
+        email (str): User's email address.
+
+    #Returns:
+        bool: True if the user exists, False if the user does not exist.
+    """
     result = collection.find_one({"email": email})
     if result is None:
         return False
@@ -10,10 +27,17 @@ def checkIfUserExits(collection, email):
         return True
 
 
-# funtion to add a user with no accounts[{access_token, item_id}}]
-# @param: collection type of mongoDB collection, email type of string
-# @return: True if the user is added successfully, False if the user already exists
 def addUser(collection, email):
+    """
+    #Function to add a user to a MongoDB collection with no accounts.
+
+    #Args:
+        collection (collection): MongoDB collection object.
+        email (str): User's email address.
+
+    #Returns:
+        bool: True if the user is added successfully, False if the user already exists.
+    """
     if checkIfUserExits(collection, email):
         return False
     else:
@@ -21,11 +45,19 @@ def addUser(collection, email):
         return True
 
 
-# funtion to add an account to a user who already exists append to the account array
-# @param: collection type of mongoDB collection, email type of string, access_token type of string, item_id type of string
-# @return: True if the account is added successfully, False if the user does not exist
-
 def addAccount(collection, email, access_token, item_id):
+    """
+    #Function to add an account to a user who already exists by appending to the account array.
+
+    #Args:
+        collection (collection): MongoDB collection object.
+        email (str): User's email address.
+        access_token (str): Access token for the account.
+        item_id (str): ID of the account item.
+
+    #Returns:
+        bool: True if the account is added successfully, False if the user does not exist.
+    """
     if checkIfUserExits(collection, email):
         query = {"email": email}
         newvalues = {"$push": {"account": {
@@ -36,10 +68,18 @@ def addAccount(collection, email, access_token, item_id):
         return False
 
 
-# funtion to delete a user
-# @param: collection type of mongoDB collection, email type of string
-# @return: True if the user is deleted successfully, False if the user does not exist
+
 def deleteUser(collection, email):
+    """
+    #Function to delete a user from a MongoDB collection.
+
+    #Args:
+        collection (collection): MongoDB collection object.
+        email (str): User's email address.
+
+    #Returns:
+        bool: True if the user is deleted successfully, False if the user does not exist.
+    """
     if checkIfUserExits(collection, email):
         collection.delete_one({"email": email})
         return True
@@ -47,10 +87,17 @@ def deleteUser(collection, email):
         return False
 
 
-# funtion to get user accounts
-# @param: collection type of mongoDB collection, email type of string
-# @return: list of accounts if the user exists, None if the user does not exist
 def getUserAccounts(collection, email):
+    """
+    #Function to retrieve the accounts of a user from a MongoDB collection.
+
+    #Args:
+        collection (collection): MongoDB collection object.
+        email (str): User's email address.
+
+    #Returns:
+        list: List of accounts if the user exists, None if the user does not exist.
+    """
     result = collection.find_one({"email": email})
     if result is None:
         return None
@@ -59,10 +106,17 @@ def getUserAccounts(collection, email):
 
 
 
-# funtion to get user
-# @param: collection type of mongoDB collection, email type of string
-# @return: user if the user exists, None if the user does not exist
 def getUser(collection, email):
+    """
+    #Function to retrieve a user from a MongoDB collection.
+
+    #Args:
+        collection (collection): MongoDB collection object.
+        email (str): User's email address.
+
+    #Returns:
+        dict: User if the user exists, None if the user does not exist.
+    """
     result = collection.find_one({"email": email})
     if result is None:
         return None
@@ -70,10 +124,18 @@ def getUser(collection, email):
         return result
 
 
-# funtion to check of an access token exists for a user
-# @param : collection type of mongoDB collection, email type of string, access_token type of string
-# @return: True if the access token exists, False if the access token does not exist
 def checkIfAccessTokenExits(collection, email, access_token):
+    """
+    #Function to check if an access token exists for a user in a MongoDB collection.
+
+    #Args:
+        collection (collection): MongoDB collection object.
+        email (str): User's email address.
+        access_token (str): Access token to check.
+
+    #Returns:
+        bool: True if the access token exists, False if the access token does not exist.
+    """
     result = collection.find_one({"email": email})
     try:
         for account in result['account']:
@@ -85,14 +147,20 @@ def checkIfAccessTokenExits(collection, email, access_token):
 
 
 
-#funtion to add transactions to a user based on email 
-#it addes an array of transactions to a user transactions array{account_id, transactions[], cursor}
-#it checks if the user exists and if the account_id exists in the user transactions array if so it apends the new transactions to the existing transactions
-#if the in transactions account_id does not exist it adds a new object to the transactions array
-#also updates the cursor
-# @param: collection type of mongoDB collection, email type of string, transactions type of array, cursor type of string, account_id type of string
-# @return: True if the transactions are added successfully, False if the user does not exist
 def addTransactions(collection, email, transactions, cursor, account_id):
+    """
+    #Function to add transactions to a user's transactions array in a MongoDB collection.
+
+    #Args:
+        collection (collection): MongoDB collection object.
+        email (str): User's email address.
+        transactions (list): List of transactions to be added.
+        cursor (str): Cursor value for the transactions.
+        account_id (str): ID of the account for the transactions.
+
+    #Returns:
+        bool: True if the transactions are added successfully, False if the user does not exist.
+    """
     if checkIfUserExits(collection, email):
         query = {"email": email}
         existing_transactions = collection.find_one(query, {"transactions": 1})
@@ -110,7 +178,7 @@ def addTransactions(collection, email, transactions, cursor, account_id):
                     "transactions": transactions,
                     "cursor": cursor
                 })
-            
+
             update_operation = {"$set": {"transactions": existing_transactions}}
             array_filters = []
         else:
@@ -133,16 +201,23 @@ def addTransactions(collection, email, transactions, cursor, account_id):
             return False
     else:
         return False
+
     
 
-#funtion to add transactions to a user based on email
-#it addes an array of transactions to a user transactions array{account_id, transactions[], cursor}
-#it checks if the user exists and if the account_id exists in the user transactions array if so it apends the new transactions to the existing transactions only if the transaction_id does not exist
-#if the in transactions account_id does not exist it adds a new object to the transactions array
-#also updates the cursor
-# @param: collection type of mongoDB collection, email type of string, transactions type of array, cursor type of string, account_id type of string
-# @return: True if the transactions are added successfully, False if the user does not exist
 def addTransactionsv1(collection, email, transactions, cursor, account_id):
+    """
+    #Function to add transactions to a user's transactions array in a MongoDB collection.
+
+    #Args:
+        collection (collection): MongoDB collection object.
+        email (str): User's email address.
+        transactions (list): List of transactions to be added.
+        cursor (str): Cursor value for the transactions.
+        account_id (str): ID of the account for the transactions.
+
+    #Returns:
+        bool: True if the transactions are added successfully, False if the user does not exist.
+    """
     if checkIfUserExits(collection, email):
         query = {"email": email}
         existing_transactions = collection.find_one(query, {"transactions": 1})
@@ -162,7 +237,7 @@ def addTransactionsv1(collection, email, transactions, cursor, account_id):
                     "transactions": transactions,
                     "cursor": cursor
                 })
-            
+
             update_operation = {"$set": {"transactions": existing_transactions}}
             array_filters = []
         else:
@@ -187,10 +262,19 @@ def addTransactionsv1(collection, email, transactions, cursor, account_id):
         return False
 
 
-# function to get the cursor of a user
-# @param: collection type of mongoDB collection, email type of string, account_id type of string
-# @return: cursor if the user exists and the account_id exists in the user transactions array, None if the user does not exist or the account_id does not exist
+
 def getCursor(collection, email, account_id):
+    """
+    #Function to retrieve the cursor of a user's account from a MongoDB collection.
+
+    #Args:
+        collection (collection): MongoDB collection object.
+        email (str): User's email address.
+        account_id (str): ID of the account.
+
+    #Returns:
+        str: Cursor if the user exists and the account_id exists in the user transactions array, None if the user does not exist or the account_id does not exist.
+    """
     query = {"email": email, "transactions.account_id": account_id}
     projection = {"_id": 0, "transactions.$": 1}
     result = collection.find_one(query, projection)
@@ -200,13 +284,19 @@ def getCursor(collection, email, account_id):
         return transaction["cursor"]
     else:
         return None
-    
 
 
-# function to return all the transactions of a user in a single list
-# @param: collection type of mongoDB collection, email type of string
-# @return: list of transactions if the user exists, None if the user does not exist and None if Transactions does not exist
 def getAllTransactions(collection, email):
+    """
+    #Function to retrieve all the transactions of a user from a MongoDB collection.
+
+    #Args:
+        collection (collection): MongoDB collection object.
+        email (str): User's email address.
+
+    #Returns:
+        list: List of transactions if the user exists, None if the user does not exist or transactions do not exist.
+    """
     query = {"email": email}
     user = collection.find_one(query, {"transactions": 1})
 
@@ -221,13 +311,22 @@ def getAllTransactions(collection, email):
         return None
 
 
-# funtion to get user transactions
-# @param: collection type of mongoDB collection, email type of string
-# @return: list of transactions if the user exists, None if the user does not exist and None if Transactions does not exist
+
 def getUserTransactions(collection, email):
+    """
+    #Function to retrieve the transactions of a user from a MongoDB collection.
+
+    #Args:
+        collection (collection): MongoDB collection object.
+        email (str): User's email address.
+
+    #Returns:
+        list: List of transactions if the user exists, None if the user does not exist or transactions do not exist.
+    """
     result = collection.find_one({"email": email})
     if result is None:
         return None
     else:
         return result.get('transactions')
+
 
