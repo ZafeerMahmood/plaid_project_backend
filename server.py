@@ -178,8 +178,8 @@ def get_accounts():
     institution_ids = []
     try:
         for access_token in accounts:
-            request = AccountsGetRequest(access_token=access_token['access_token'])
-            response = client.accounts_get(request)
+            requests = AccountsGetRequest(access_token=access_token['access_token'])
+            response = client.accounts_get(requests)
             institution_id = response.item.institution_id
             institution_ids.append(institution_id)
 
@@ -187,6 +187,8 @@ def get_accounts():
     except plaid.ApiException as e:
         error_response = format_error(e)
         return jsonify(error_response), 500
+    
+
 
 @app.route('/api/balance', methods=['GET'])
 def get_balance():
@@ -200,24 +202,24 @@ def get_balance():
         dict: A dictionary containing the total balance and a list of filtered accounts with their balances and percentages.
 
     #Raises:
-        Exception: If an error occurs during the balance retrieval.
+         plaid.ApiException: If an error occurs during the API call.
     """
     email = request.form['email']
-
     if checkIfUserExits(collection, email) is False:
         return jsonify({'error': 'User does not exist'})
-
     account = getUserAccounts(collection, email)
     balance_obj = {}
     total_balance = 0
     i = 1
-
     try:
         for access_token in account:
             account_key = 'account_' + str(i)
-            request = AccountsBalanceGetRequest(access_token=access_token['access_token'])
-            response = client.accounts_balance_get(request)
+            requests = AccountsBalanceGetRequest(
+                access_token=access_token['access_token']
+            )
+            response = client.accounts_balance_get(requests)
 
+            # Extract account details and add them to balance_obj
             for account_details in response.accounts:
                 account_id = account_details.account_id
                 account_name = account_details.name
@@ -240,12 +242,13 @@ def get_balance():
             'total_balance': total_balance,
             'accounts': []
         }
-
+        # Filter and add specific accounts to the 'accounts' list
         for account_key, account_details in balance_obj.items():
             for account in account_details:
-                if account['name'] in ['Plaid Checking', 'Plaid Saving']:
+                if account['name'] in ['Plaid Checking', 'Plaid Saving']:  # Add account names as per your requirement
                     response_data['accounts'].append(account)
-
+                    
+        # Calculate and add percentages for each account balance
         for account in response_data['accounts']:
             available_balance = account['balances']['available']
             percentage = (available_balance / total_balance) * 100
@@ -253,8 +256,9 @@ def get_balance():
 
         return jsonify(response_data)
 
-    except Exception as e:
-        return jsonify({'error': e})
+    except plaid.ApiException as e:
+        error_response = format_error(e)
+        return jsonify(error_response), 500
     
 
 @app.route('/api/transactions/test', methods=['GET'])
@@ -334,7 +338,7 @@ def get_transactions_from_access_token(access_token):
         return error_response
 
 
-
+@app.route('/api/transactions/update', methods=['POST'])
 def get_transactionsUpdate():
     """
     #Retrieve updated transactions for the user.
@@ -353,7 +357,7 @@ def get_transactionsUpdate():
         dict: Dictionary containing the updated transactions.
 
     #Raises:
-        None
+         plaid.ApiException: If an error occurs during the API call.
     """
     email = request.form['email']
     if checkIfUserExits(collection, email) is False:
@@ -379,8 +383,9 @@ def get_transactionsUpdate():
 
         return jsonify({'transactions': obj})
 
-    except Exception as e:
-        return jsonify({'error': e})
+    except plaid.ApiException as e:
+        error_response = format_error(e)
+        return jsonify(error_response), 500
 
 
 def getTransactionsSync(access_token, cursorparam):
@@ -441,7 +446,7 @@ def get_transactions_from_db():
         JSON response containing a list of transactions.
 
     #Raises:
-        None
+        Exception: If an error occurs during the database query.
     """
     email = request.form['email']
     if checkIfUserExits(collection, email) is False:
@@ -483,6 +488,7 @@ def get_Expense():
     #Raises:
         None
     """
+    category_Size=5
     email = request.form['email']
     if checkIfUserExits(collection, email) is False:
         return jsonify({'error': 'User does not exist'})
@@ -501,7 +507,7 @@ def get_Expense():
                     category_spending[category] = amount
                 total_spending += amount
 
-        top_categories = sorted(category_spending.items(), key=lambda x: x[1], reverse=True)[:5]
+        top_categories = sorted(category_spending.items(), key=lambda x: x[1], reverse=True)[:category_Size]
         top_categories_data = []
 
         for category, amount in top_categories:
