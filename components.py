@@ -328,5 +328,3 @@ def getUserTransactions(collection, email):
         return None
     else:
         return result.get('transactions')
-
-

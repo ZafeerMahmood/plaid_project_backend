@@ -512,6 +512,73 @@ def get_Expense():
     except Exception as e:
         return jsonify({'error': str(e)})
 
+@app.route('/api/pattern', methods=['GET'])
+def get_pattern():
+    category_size = 3
+    email = request.form['email']
+    if checkIfUserExits(collection, email) is False:
+        return jsonify({'error': 'User does not exist'})
+    try:
+        result = getAllTransactions(collection, email)
+        total_spending = 0
+        current_month_transactions = {}
+        previous_month_transactions = {}
+        current_month = datetime.datetime.now().month
+        current_year = datetime.datetime.now().year
+        flag = True
+
+        # Find the last month for which the user has transactions
+        last_month = current_month - 1
+        for transaction in result:
+            if transaction['amount'] > 0:
+                category = tuple(transaction['category'])
+                amount = transaction['amount']
+                transaction_month = datetime.datetime.strptime(transaction['date'], '%Y-%m-%d').month
+                transaction_year = datetime.datetime.strptime(transaction['date'], '%Y-%m-%d').year
+
+                if current_month != transaction_month and flag:
+                    current_month = transaction_month
+                    flag = False
+
+                if transaction_year == current_year:
+                    if transaction_month == current_month:
+                        if category in current_month_transactions:
+                            current_month_transactions[category] += amount
+                        else:
+                            current_month_transactions[category] = amount
+                    elif transaction_month == current_month-1:
+                        if category in previous_month_transactions:
+                            previous_month_transactions[category] += amount
+                        else:
+                            previous_month_transactions[category] = amount
+
+                total_spending += amount
+
+        top_categories = sorted(current_month_transactions.items(), key=lambda x: x[1], reverse=True)[:category_size]
+        top_categories_data = []
+
+        for category, amount in top_categories:
+            current_month_spending = current_month_transactions.get(category, 0)
+            previous_month_spending = previous_month_transactions.get(category, 0)
+            percentage_change = round(((current_month_spending - previous_month_spending) / previous_month_spending) * 100, 2) if previous_month_spending != 0 else 0
+
+            if percentage_change > 0:
+                change_type = 'increase'
+            elif percentage_change < 0:
+                change_type = 'decrease'
+            else:
+                change_type = 'no change'
+
+            top_categories_data.append({
+                'category': category,
+                'amount': current_month_spending,
+                'percentage_change': percentage_change,
+                'change_type': change_type
+            })
+        return jsonify(top_categories_data)
+    except Exception as e:
+        return jsonify({'error': str(e)})
+   
 @app.route('/api/Reauthenticate', methods=['POST', 'GET'])
 def reauthenticate_User():
     """
