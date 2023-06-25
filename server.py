@@ -195,7 +195,8 @@ def get_balance():
         email (str): The email of the user.
 
     #Returns:
-        dict: A dictionary containing the total balance and a list of filtered accounts with their balances and percentages.
+        dict: A dictionary containing the total balance, total current balance, and
+              a list of accounts from all access tokens with their balances and percentages.
 
     #Raises:
          plaid.ApiException: If an error occurs during the API call.
@@ -203,13 +204,14 @@ def get_balance():
     email = request.form['email']
     if checkIfUserExits(collection, email) is False:
         return jsonify({'error': 'User does not exist'})
+
     account = getUserAccounts(collection, email)
     balance_obj = {}
     total_balance = 0
-    i = 1
+    total_current_balance = 0
+
     try:
         for access_token in account:
-            account_key = 'account_' + str(i)
             requests = AccountsBalanceGetRequest(
                 access_token=access_token['access_token']
             )
@@ -226,24 +228,25 @@ def get_balance():
                     'limit': account_details.balances.limit,
                     'unofficial_currency_code': account_details.balances.unofficial_currency_code
                 }
-                balance_obj.setdefault(account_key, []).append({
-                    'account_id': account_id,
+                balance_obj.setdefault(account_id, []).append({
                     'name': account_name,
                     'balances': balances
                 })
 
                 total_balance += account_details.balances.available
+                total_current_balance += account_details.balances.current
 
         response_data = {
             'total_balance': total_balance,
+            'total_current_balance': total_current_balance,
             'accounts': []
         }
-        # Filter and add specific accounts to the 'accounts' list
-        for account_key, account_details in balance_obj.items():
+
+        # Add all accounts to the 'accounts' list
+        for account_id, account_details in balance_obj.items():
             for account in account_details:
-                if account['name'] in ['Plaid Checking', 'Plaid Saving']:  # Add account names as per your requirement
-                    response_data['accounts'].append(account)
-                    
+                response_data['accounts'].append(account)
+
         # Calculate and add percentages for each account balance
         for account in response_data['accounts']:
             available_balance = account['balances']['available']
@@ -255,7 +258,7 @@ def get_balance():
     except plaid.ApiException as e:
         error_response = format_error(e)
         return jsonify(error_response), 500
-    
+
 @app.route('/api/transactions/test', methods=['GET'])
 def get_transactions():
     """
