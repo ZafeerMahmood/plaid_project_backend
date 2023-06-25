@@ -87,7 +87,6 @@ def index():
     """
     return f"Flask server running on port {os.getenv('PORT', 8000)}"
 
-
 @app.route('/api/linkToken', methods=['GET'])
 def linkToken():
     """
@@ -154,7 +153,6 @@ def setAccessToken():
         pretty_print_response(e)
         return json.loads(e.body)
 
-
 @app.route('/api/accounts', methods=['POST', 'GET'])
 def get_accounts():
     """
@@ -188,8 +186,6 @@ def get_accounts():
         error_response = format_error(e)
         return jsonify(error_response), 500
     
-
-
 @app.route('/api/balance', methods=['GET'])
 def get_balance():
     """
@@ -260,7 +256,6 @@ def get_balance():
         error_response = format_error(e)
         return jsonify(error_response), 500
     
-
 @app.route('/api/transactions/test', methods=['GET'])
 def get_transactions():
     """
@@ -294,7 +289,6 @@ def get_transactions():
         return jsonify({'transactions': obj})
     except Exception as e:
         return jsonify({'error': e})
-
 
 def get_transactions_from_access_token(access_token):
     """
@@ -336,7 +330,6 @@ def get_transactions_from_access_token(access_token):
     except plaid.ApiException as e:
         error_response = format_error(e)
         return error_response
-
 
 @app.route('/api/transactions/update', methods=['POST'])
 def get_transactionsUpdate():
@@ -387,7 +380,6 @@ def get_transactionsUpdate():
         error_response = format_error(e)
         return jsonify(error_response), 500
 
-
 def getTransactionsSync(access_token, cursorparam):
     """
     #Retrieve transactions from Plaid using the transactions_sync endpoint.
@@ -430,7 +422,6 @@ def getTransactionsSync(access_token, cursorparam):
         error_response = format_error(e)
         return error_response
 
-
 @app.route('/api/transactions', methods=['GET'])
 def get_transactions_from_db():
     """
@@ -469,7 +460,6 @@ def get_transactions_from_db():
     except Exception as e:
         return jsonify({'error': str(e)})
 
-
 @app.route('/api/expense', methods=['GET'])
 def get_Expense():
     """
@@ -486,7 +476,7 @@ def get_Expense():
         JSON response containing the list of categories and the amount spent in each category, limited to 5.
 
     #Raises:
-        None
+       Exception : If an error occurs during the database query.
     """
     category_Size=5
     email = request.form['email']
@@ -522,7 +512,52 @@ def get_Expense():
     except Exception as e:
         return jsonify({'error': str(e)})
 
+@app.route('/api/Reauthenticate', methods=['POST', 'GET'])
+def reauthenticate_User():
+    """
+    #Call any plaid service to check it access token is still valid.
 
+    #Args:
+        email (str): The email of the user.
+
+    #Returns:
+        string: A String message to indicate that the access token is valid.
+
+    #Raises:
+        plaid.ApiException: If an error occurs during the API call return an Link Token To reauthenticate User.
+    """
+    email = request.form['email']
+    accounts = getUserAccounts(collection, email)
+    access_token_reauthinticate=''
+
+    if accounts is None:
+        return jsonify({'error': 'User does not exist'}), 404
+
+    institution_ids = []
+    try:
+        for access_token in accounts:
+            access_token_reauthinticate=access_token['access_token']
+            requests = AccountsGetRequest(access_token=access_token['access_token'])
+            response = client.accounts_get(requests)
+            institution_id = response.item.institution_id
+            institution_ids.append(institution_id)
+
+        return jsonify({"message":"Access Token Up to date"}), 200
+    except plaid.ApiException as e:
+        error_response = format_error(e)
+        if error_response['error_code']=='ITEM_LOGIN_REQUIRED':
+            request = LinkTokenCreateRequest(
+            client_name="Plaid Quickstart",
+            country_codes=[CountryCode('US')],
+            language='en',
+            access_token = access_token_reauthinticate,
+            user=LinkTokenCreateRequestUser(
+                client_user_id=str(time.time())
+            ))
+            response = client.link_token_create(request)
+            return jsonify(response.to.dict),525
+        else:
+            return jsonify(error_response), 500
 
 def pretty_print_response(response):
     """
@@ -540,7 +575,6 @@ def pretty_print_response(response):
         None
     """
     print(json.dumps(response, indent=2, sort_keys=True, default=str))
-
 
 def format_error(e):
     """
@@ -566,8 +600,6 @@ def format_error(e):
             'error_type': response['error_type']
         }
     }
-
-
 
 if __name__ == '__main__':
     """
