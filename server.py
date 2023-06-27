@@ -517,7 +517,7 @@ def get_Expense():
 
 @app.route('/api/pattern', methods=['GET'])
 def get_pattern():
-    category_size = 3
+    category_size = 4
     email = request.form['email']
     if checkIfUserExits(collection, email) is False:
         return jsonify({'error': 'User does not exist'})
