@@ -425,7 +425,7 @@ def getTransactionsSync(access_token, cursorparam):
         error_response = format_error(e)
         return error_response
 
-@app.route('/api/transactions', methods=['GET'])
+@app.route('/api/transactions', methods=['GET','POST'])
 def get_transactions_from_db():
     """
     #Retrieve all transactions for a user from the database.
