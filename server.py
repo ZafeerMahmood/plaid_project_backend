@@ -8,10 +8,10 @@
         - python-dotenv
         - flask-cors
     #environment variables:
-        - PLAID_CLIENT_ID
-        - PLAID_SECRET_ID
-        - PLAID_ENV
-        - MONGODB_URI
+        - PLAID_CLIENT_ID from .env
+        - PLAID_SECRET_ID from .env
+        - PLAID_ENV from .env
+        - MONGODB_URI from .env
     
     
     #To run the server, run the following command in the terminal:
@@ -186,7 +186,7 @@ def get_accounts():
         error_response = format_error(e)
         return jsonify(error_response), 500
     
-@app.route('/api/balance', methods=['GET'])
+@app.route('/api/balance', methods=['GET','POST'])
 def get_balance():
     """
     #Get the account balances for the user.
@@ -463,7 +463,7 @@ def get_transactions_from_db():
     except Exception as e:
         return jsonify({'error': str(e)})
 
-@app.route('/api/expense', methods=['GET'])
+@app.route('/api/expense', methods=['GET','POST'])
 def get_Expense():
     """
     #Retrieve a list of categories and the amount spent in each category, limited to 5.
@@ -515,7 +515,7 @@ def get_Expense():
     except Exception as e:
         return jsonify({'error': str(e)})
 
-@app.route('/api/pattern', methods=['GET'])
+@app.route('/api/pattern', methods=['GET','POST'])
 def get_pattern():
     category_size = 4
     email = request.form['email']
