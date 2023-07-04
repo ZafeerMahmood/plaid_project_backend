@@ -1,15 +1,19 @@
+# README
+
 This is a flask based server application using plaid services.
 
 plaid documentation Link : `https://plaid.com/docs/`
 
-environment
+# Environment
+
 ```env
 PLAID_CLIENT_ID=
 PLAID_SECRET_ID=
 MONGODB_URI=mongodb+srv:
 ```
 
-requirments 
+# Requirments 
+
 ```py
 flask
 plaid-python
@@ -23,7 +27,8 @@ running the server
 py server.py
 ```
 
-component.py 
+# component.py 
+
 includes all the function used to communicate with monogdb atlas
 
 example funtion
@@ -46,7 +51,10 @@ def checkIfUserExits(collection, email):
         return True
 ```
 
-server.py includes all the routes and funtion used in the frontent link : https://github.com/ZafeerMahmood/plaid_project_frontend 
+
+# server.py 
+
+includes all the routes and funtion used in the frontent link : https://github.com/ZafeerMahmood/plaid_project_frontend 
 example route 
 ```py
 @app.route('/api/setAccessToken', methods=['POST'])
@@ -70,8 +78,10 @@ def setAccessToken():
     email = request.form['email']
 ```
 
-can be used with pdocs to geneate a static site for server.py and component.py
-for ease of understanting
+# pdoc
+
+can be used with pdocs to generate a static site for server.py and component.py
+for ease of understanting.
 ```sh
 pdoc ./server.py -o ./serverDocs
 pdoc ./components.py -o ./componentsDocs
