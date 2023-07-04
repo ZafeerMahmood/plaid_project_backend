@@ -85,6 +85,7 @@ for ease of understanting.
 ```sh
 pdoc ./server.py -o ./serverDocs
 pdoc ./components.py -o ./componentsDocs
+
 ```
 
 
