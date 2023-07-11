@@ -615,8 +615,8 @@ def reauthenticate_User():
         return jsonify({"message":"Access Token Up to date"}), 200
     except plaid.ApiException as e:
         error_response = format_error(e)
-        if error_response['error_code']=='ITEM_LOGIN_REQUIRED':
-            request = LinkTokenCreateRequest(
+        if error_response['error']['error_code']=='ITEM_LOGIN_REQUIRED':
+            requestToken = LinkTokenCreateRequest(
             client_name="Plaid Quickstart",
             country_codes=[CountryCode('US')],
             language='en',
@@ -624,8 +624,9 @@ def reauthenticate_User():
             user=LinkTokenCreateRequestUser(
                 client_user_id=str(time.time())
             ))
-            response = client.link_token_create(request)
-            return jsonify(response.to.dict),525
+            response = client.link_token_create(requestToken)
+            
+            return jsonify({"link_token":response['link_token']}),525
         else:
             return jsonify(error_response), 500
 
