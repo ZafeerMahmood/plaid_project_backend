@@ -4,7 +4,7 @@ This is a flask based server application using plaid services.
 
 plaid documentation Link : `https://plaid.com/docs/`
 
-# Environment
+## Environment
 
 ```env
 PLAID_CLIENT_ID=
@@ -12,7 +12,7 @@ PLAID_SECRET_ID=
 MONGODB_URI=mongodb+srv:
 ```
 
-# Requirments 
+## Requirements
 
 ```py
 flask
@@ -22,16 +22,18 @@ python-dotenv
 flask-cors
 ```
 
-running the server 
+running the server
+
 ```sh
 py server.py
 ```
 
-# component.py 
+## component.py
 
-includes all the function used to communicate with monogdb atlas
+includes all the function used to communicate with mongodb atlas
 
-example funtion
+example function
+
 ```py
 def checkIfUserExits(collection, email):
     """
@@ -51,11 +53,11 @@ def checkIfUserExits(collection, email):
         return True
 ```
 
+## server.py
 
-# server.py 
+includes all the routes and function used in the frontend link : <https://github.com/ZafeerMahmood/plaid_project_frontend>
+example route
 
-includes all the routes and funtion used in the frontent link : https://github.com/ZafeerMahmood/plaid_project_frontend 
-example route 
 ```py
 @app.route('/api/setAccessToken', methods=['POST'])
 def setAccessToken():
@@ -78,14 +80,13 @@ def setAccessToken():
     email = request.form['email']
 ```
 
-# pdoc
+## pdoc
 
-can be used with pdocs to generate a static site for server.py and component.py
-for ease of understanting.
+can be used with `pdocs` to generate a static site for server.py and component.py
+for ease of understating.
+
 ```sh
 pdoc ./server.py -o ./serverDocs
 pdoc ./components.py -o ./componentsDocs
 
 ```
-
-
